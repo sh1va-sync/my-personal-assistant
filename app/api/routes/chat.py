@@ -1,4 +1,6 @@
 from fastapi import APIRouter, HTTPException, Request
+import json
+
 from fastapi.responses import StreamingResponse
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -71,11 +73,21 @@ async def chat_stream(request: Request, payload: ChatRequest) -> StreamingRespon
     def events():
         try:
             for token in agent.stream_text(session.conversation_id, payload.message, payload.history):
-                yield f"data: {token}\n\n"
-            yield "data: [DONE]\n\n"
-        except Exception:  # noqa: BLE001
-            yield f"data: {FRIENDLY_ERROR}\n\n"
-            yield "data: [DONE]\n\n"
+                yield f"data: {json.dumps({'type': 'token', 'text': token})}\n\n"
+            yield f"data: {json.dumps({'type': 'done'})}\n\n"
+        except Exception as exc:  # noqa: BLE001
+            logger.error(
+                "Chat stream failed: %s",
+                type(exc).__name__,
+                extra={
+                    "request_id": getattr(request.state, "request_id", "-"),
+                    "conversation_id": session.conversation_id,
+                    "endpoint": "/api/chat/stream",
+                    "latency_ms": "-",
+                },
+            )
+            yield f"data: {json.dumps({'type': 'error', 'message': FRIENDLY_ERROR})}\n\n"
+            yield f"data: {json.dumps({'type': 'done'})}\n\n"
 
     return StreamingResponse(
         events(),

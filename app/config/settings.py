@@ -21,6 +21,9 @@ class Settings(BaseSettings):
 
     frontend_url: str = "http://localhost:5173"
     allowed_origins: str = "http://localhost:5173,http://localhost:3000"
+    work_page_url: str = ""
+    about_page_url: str = ""
+    contact_page_url: str = ""
 
     session_ttl_hours: int = Field(default=48, ge=1, le=168)
     max_history_messages: int = Field(default=20, ge=2, le=50)
@@ -55,6 +58,14 @@ class Settings(BaseSettings):
         if self.is_production:
             origins = [origin for origin in origins if origin != "*"]
         return origins
+
+    @property
+    def page_urls(self) -> dict[str, str]:
+        return {
+            "work": self.work_page_url.strip(),
+            "about": self.about_page_url.strip(),
+            "contact": self.contact_page_url.strip(),
+        }
 
 
 @lru_cache

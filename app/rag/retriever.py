@@ -47,11 +47,13 @@ class KnowledgeRetriever:
         if category and not vector_hits:
             vector_hits = self.store.similarity_search(query, k=max(top_k * 2, 6), category=None)
 
-        corpus = vector_hits
+        corpus = [chunk for chunk in vector_hits if chunk.visibility == "public"]
         if hasattr(self.store, "all_chunks") and self.store.count() <= 400:
             seen = {chunk.text for chunk in corpus}
             for chunk in self.store.all_chunks():
                 if category and chunk.category != category:
+                    continue
+                if chunk.visibility != "public":
                     continue
                 if chunk.text not in seen:
                     corpus.append(chunk)

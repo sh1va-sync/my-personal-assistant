@@ -16,6 +16,7 @@ class RetrievedChunk:
     text: str
     source: str
     category: str
+    visibility: str = "public"
     distance: float | None = None
 
 
@@ -109,6 +110,7 @@ class ChromaVectorStore:
                     text=text,
                     source=str(meta.get("source", "unknown")),
                     category=str(meta.get("category", "general")),
+                    visibility=str(meta.get("visibility", "public")),
                     distance=float(distance) if distance is not None else None,
                 )
             )
@@ -133,6 +135,7 @@ class ChromaVectorStore:
                     text=text,
                     source=str(meta.get("source", "unknown")),
                     category=str(meta.get("category", "general")),
+                    visibility=str(meta.get("visibility", "public")),
                 )
             )
         return chunks

@@ -7,10 +7,12 @@ from app.utils.security import looks_like_injection
 
 class Intent(str, Enum):
     GREETING = "greeting"
+    FAREWELL = "farewell"
     PERSONAL = "personal"
     GENERAL = "general"
     TIME = "time"
     INJECTION = "injection"
+    OUT_OF_SCOPE = "out_of_scope"
 
 
 GREETING_MARKERS = {
@@ -24,6 +26,29 @@ GREETING_MARKERS = {
     "good evening",
     "what's up",
     "whats up",
+}
+
+FAREWELL_MARKERS = {
+    "bye",
+    "goodbye",
+    "good bye",
+    "see ya",
+    "see you",
+    "see you later",
+    "catch you later",
+    "talk later",
+    "gotta go",
+    "i gotta go",
+    "i have to go",
+    "good night",
+    "goodnight",
+    "signing off",
+    "i'm leaving",
+    "im leaving",
+    "i'm off",
+    "im off",
+    "peace out",
+    "later",
 }
 
 TIME_MARKERS = (
@@ -73,7 +98,28 @@ PERSONAL_MARKERS = (
     "metaconnect",
     "pneumo",
     "webrtc",
+    "family",
+    "friend",
+    "personality",
+    "relationship",
+    "love",
+    "free time",
+    "routine",
+    "likes",
+    "dislikes",
 )
+
+SUPPORTED_MARKERS = (
+    "what can you do",
+    "how do you work",
+    "your capabilities",
+    "this portfolio",
+    "this website",
+)
+
+WORK_MARKERS = ("project", "projects", "skill", "skills", "experience", "resume", "cv", "achievement", "certification", "work")
+ABOUT_MARKERS = ("about", "education", "college", "university", "interest", "hobby", "goal", "family", "friend", "personality", "love", "routine", "free time")
+CONTACT_MARKERS = ("contact", "email", "github", "linkedin", "hire", "reach")
 
 
 @dataclass
@@ -92,20 +138,51 @@ def classify_intent(message: str) -> Intent:
     lowered = message.lower().strip()
     if looks_like_injection(lowered):
         return Intent.INJECTION
+    if lowered in FAREWELL_MARKERS or (
+        len(lowered) <= 48
+        and any(
+            lowered.startswith(f"{marker} ") or lowered.endswith(f" {marker}")
+            for marker in FAREWELL_MARKERS
+        )
+    ):
+        return Intent.FAREWELL
     if lowered in GREETING_MARKERS or (len(lowered) <= 24 and any(lowered.startswith(item) for item in GREETING_MARKERS)):
         if not any(marker in lowered for marker in PERSONAL_MARKERS):
             return Intent.GREETING
     if any(marker in lowered for marker in TIME_MARKERS) or lowered in {"time", "date", "today"}:
         return Intent.TIME
+    if any(marker in lowered for marker in SUPPORTED_MARKERS):
+        return Intent.GENERAL
     if any(marker in lowered for marker in PERSONAL_MARKERS):
         return Intent.PERSONAL
-    return Intent.GENERAL
+    return Intent.OUT_OF_SCOPE
+
+
+def infer_page_topic(text: str) -> str | None:
+    lowered = text.lower()
+    if any(marker in lowered for marker in CONTACT_MARKERS):
+        return "contact"
+    if any(marker in lowered for marker in WORK_MARKERS):
+        return "work"
+    if any(marker in lowered for marker in ABOUT_MARKERS):
+        return "about"
+    return None
+
+
+def topic_count(history: list[ChatMessage], message: str, topic: str) -> int:
+    entries = [item.content for item in history if item.role == "user"] + [message]
+    markers = {
+        "work": WORK_MARKERS,
+        "about": ABOUT_MARKERS,
+        "contact": CONTACT_MARKERS,
+    }[topic]
+    return sum(1 for entry in entries if any(marker in entry.lower() for marker in markers))
 
 
 def classify_response_type(intent: Intent, sources: list[str], used_time_tool: bool) -> ResponseType:
-    if intent == Intent.GREETING:
+    if intent in {Intent.GREETING, Intent.FAREWELL}:
         return "greeting"
-    if intent == Intent.INJECTION:
+    if intent in {Intent.INJECTION, Intent.OUT_OF_SCOPE}:
         return "text"
     if used_time_tool:
         return "general"

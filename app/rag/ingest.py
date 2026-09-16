@@ -24,12 +24,17 @@ def load_knowledge_documents(knowledge_path: str | Path | None = None) -> list[D
         text = path.read_text(encoding="utf-8").strip()
         if not text:
             continue
+        if path.name.lower() == "personal_life.md" and text.lower().startswith("visibility: public"):
+            text = text.split("\n", 1)[1].lstrip() if "\n" in text else ""
+        if not text:
+            continue
         documents.append(
             Document(
                 page_content=text,
                 metadata={
                     "source": path.name,
                     "category": path.stem.lower(),
+                    "visibility": _visibility_for(path.name, text),
                 },
             )
         )
@@ -61,6 +66,7 @@ def ingest_knowledge(
         {
             "source": str(chunk.metadata.get("source", "unknown")),
             "category": str(chunk.metadata.get("category", "general")),
+            "visibility": str(chunk.metadata.get("visibility", "public")),
         }
         for chunk in chunks
     ]
@@ -82,3 +88,10 @@ def ingest_knowledge(
         "chunks": len(chunks),
         "sources": sources,
     }
+
+
+def _visibility_for(source: str, text: str) -> str:
+    if source.lower() != "personal_life.md":
+        return "public"
+    first_line = text.splitlines()[0].strip().lower() if text.splitlines() else ""
+    return "public" if first_line == "visibility: public" else "private"

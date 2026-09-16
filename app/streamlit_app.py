@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import json
 from typing import Any
 
 import httpx
@@ -52,6 +53,35 @@ def _send_message(message: str) -> dict[str, Any]:
     if not data.get("message"):
         raise RuntimeError("The API returned an empty assistant message.")
     return data
+
+
+def _send_stream(message: str) -> str:
+    history = [
+        {"role": item["role"], "content": item["content"]}
+        for item in st.session_state.messages[-MAX_HISTORY_MESSAGES:]
+    ]
+    payload = {
+        "conversation_id": st.session_state.conversation_id,
+        "message": message,
+        "history": history,
+    }
+    parts: list[str] = []
+    with httpx.stream(
+        "POST",
+        f"{_api_url()}/api/chat/stream",
+        json=payload,
+        timeout=90.0,
+    ) as response:
+        response.raise_for_status()
+        for line in response.iter_lines():
+            if not line.startswith("data: "):
+                continue
+            event = json.loads(line[6:])
+            if event["type"] == "token":
+                parts.append(str(event["text"]))
+            elif event["type"] == "error":
+                raise RuntimeError(str(event["message"]))
+    return "".join(parts)
 
 
 def _check_health() -> tuple[bool, str]:

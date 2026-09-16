@@ -33,7 +33,7 @@ class GeminiClient:
         config_kwargs: dict[str, Any] = {
             "system_instruction": system_instruction,
             "temperature": 0.7,
-            "max_output_tokens": 700,
+            "max_output_tokens": 350,
         }
         if tools:
             config_kwargs["tools"] = [
@@ -66,7 +66,7 @@ class GeminiClient:
             config=self._types.GenerateContentConfig(
                 system_instruction=system_instruction,
                 temperature=0.7,
-                max_output_tokens=700,
+                max_output_tokens=350,
             ),
         )
         for chunk in stream:
