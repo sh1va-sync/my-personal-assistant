@@ -13,8 +13,8 @@ class Settings(BaseSettings):
     )
 
     gemini_api_key: str = ""
-    gemini_model: str = "gemini-2.5-flash"
-    gemini_embedding_model: str = "text-embedding-004"
+    gemini_model: str = "gemini-3.6-flash"
+    gemini_embedding_model: str = "gemini-embedding-001"
 
     vector_db_path: str = "./data/vectorstore"
     knowledge_path: str = "./data/knowledge"

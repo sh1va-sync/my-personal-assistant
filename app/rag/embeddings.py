@@ -42,25 +42,46 @@ class HashEmbeddings:
 class GeminiEmbeddings:
     def __init__(self) -> None:
         from google import genai
+        from google.genai import types
 
         settings = get_settings()
         if not settings.gemini_api_key:
             raise RuntimeError("GEMINI_API_KEY is required for Gemini embeddings")
         self._client = genai.Client(api_key=settings.gemini_api_key)
-        self._model = settings.gemini_embedding_model
+        self._types = types
+        self._model = settings.gemini_embedding_model.removeprefix("models/")
+        if self._model == "text-embedding-004":
+            raise RuntimeError(
+                "GEMINI_EMBEDDING_MODEL=text-embedding-004 is no longer supported; "
+                "use gemini-embedding-001"
+            )
 
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
         vectors: list[list[float]] = []
         batch_size = 50
         for start in range(0, len(texts), batch_size):
             batch = texts[start : start + batch_size]
-            response = self._client.models.embed_content(model=self._model, contents=batch)
+            response = self._client.models.embed_content(
+                model=self._model,
+                contents=batch,
+                config=self._types.EmbedContentConfig(task_type="RETRIEVAL_DOCUMENT"),
+            )
             for embedding in response.embeddings:
-                vectors.append(list(embedding.values))
+                values = embedding.values
+                if not values:
+                    raise RuntimeError("Gemini returned an empty document embedding")
+                vectors.append(list(values))
         return vectors
 
     def embed_query(self, text: str) -> list[float]:
-        return self.embed_documents([text])[0]
+        response = self._client.models.embed_content(
+            model=self._model,
+            contents=text,
+            config=self._types.EmbedContentConfig(task_type="RETRIEVAL_QUERY"),
+        )
+        if not response.embeddings or not response.embeddings[0].values:
+            raise RuntimeError("Gemini returned an empty query embedding")
+        return list(response.embeddings[0].values)
 
 
 def build_embeddings(force_hash: bool = False) -> Embeddings:
