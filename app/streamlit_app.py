@@ -31,9 +31,12 @@ def _create_session() -> str:
 
 
 def _send_message(message: str) -> dict[str, Any]:
+    prior_messages = st.session_state.messages
+    if prior_messages and prior_messages[-1]["role"] == "user" and prior_messages[-1]["content"] == message:
+        prior_messages = prior_messages[:-1]
     history = [
         {"role": item["role"], "content": item["content"]}
-        for item in st.session_state.messages[-MAX_HISTORY_MESSAGES:]
+        for item in prior_messages[-MAX_HISTORY_MESSAGES:]
     ]
     payload = {
         "conversation_id": st.session_state.conversation_id,
@@ -56,9 +59,12 @@ def _send_message(message: str) -> dict[str, Any]:
 
 
 def _send_stream(message: str) -> str:
+    prior_messages = st.session_state.messages
+    if prior_messages and prior_messages[-1]["role"] == "user" and prior_messages[-1]["content"] == message:
+        prior_messages = prior_messages[:-1]
     history = [
         {"role": item["role"], "content": item["content"]}
-        for item in st.session_state.messages[-MAX_HISTORY_MESSAGES:]
+        for item in prior_messages[-MAX_HISTORY_MESSAGES:]
     ]
     payload = {
         "conversation_id": st.session_state.conversation_id,
@@ -94,7 +100,7 @@ def _check_health() -> tuple[bool, str]:
 
 
 st.set_page_config(
-    page_title="Shiva's AI Assistant",
+    page_title="Sync",
     page_icon="🤖",
     layout="centered",
 )
@@ -106,8 +112,8 @@ if "conversation_id" not in st.session_state:
 if "api_url" not in st.session_state:
     st.session_state.api_url = os.getenv("API_URL", DEFAULT_API_URL)
 
-st.title("Shiva's AI Assistant")
-st.caption("Ask about Shiva's projects, skills, experience, or anything else.")
+st.title("Sync")
+st.caption("Shiva's AI assistant — ask about his work, life, or portfolio.")
 
 with st.sidebar:
     st.header("Settings")
@@ -136,12 +142,12 @@ for item in st.session_state.messages:
         if item.get("sources"):
             st.caption("Sources: " + ", ".join(item["sources"]))
 
-if prompt := st.chat_input("Message Shiva's AI assistant..."):
+if prompt := st.chat_input("Message Sync..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    with st.chat_message("assistant"):
+    with st.chat_message("assistant", avatar="🤖"):
         with st.spinner("Thinking..."):
             try:
                 result = _send_message(prompt)

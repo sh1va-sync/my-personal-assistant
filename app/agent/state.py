@@ -15,6 +15,27 @@ class Intent(str, Enum):
     OUT_OF_SCOPE = "out_of_scope"
 
 
+CONTEXTUAL_MARKERS = (
+    "it",
+    "that",
+    "this",
+    "they",
+    "them",
+    "he",
+    "she",
+    "his",
+    "her",
+    "more",
+    "why",
+    "how so",
+    "what about",
+    "and ",
+    "also ",
+    "what do you mean",
+    "tell me more",
+)
+
+
 GREETING_MARKERS = {
     "hi",
     "hey",
@@ -117,6 +138,31 @@ SUPPORTED_MARKERS = (
     "this website",
 )
 
+CASUAL_MARKERS = {
+    "ok",
+    "okay",
+    "k",
+    "kk",
+    "got it",
+    "i get it",
+    "understood",
+    "thanks",
+    "thank you",
+    "cool",
+    "nice",
+    "wow",
+    "really",
+    "what",
+    "wt",
+    "huh",
+    "why",
+    "i don't understand",
+    "i dont understand",
+    "i am confused",
+    "im confused",
+    "confused",
+}
+
 WORK_MARKERS = ("project", "projects", "skill", "skills", "experience", "resume", "cv", "achievement", "certification", "work")
 ABOUT_MARKERS = ("about", "education", "college", "university", "interest", "hobby", "goal", "family", "friend", "personality", "love", "routine", "free time")
 CONTACT_MARKERS = ("contact", "email", "github", "linkedin", "hire", "reach")
@@ -153,9 +199,25 @@ def classify_intent(message: str) -> Intent:
         return Intent.TIME
     if any(marker in lowered for marker in SUPPORTED_MARKERS):
         return Intent.GENERAL
+    if lowered in CASUAL_MARKERS:
+        return Intent.GENERAL
     if any(marker in lowered for marker in PERSONAL_MARKERS):
         return Intent.PERSONAL
     return Intent.OUT_OF_SCOPE
+
+
+def is_contextual_follow_up(message: str, history: list[ChatMessage]) -> bool:
+    if not history:
+        return False
+    lowered = message.lower().strip()
+    if lowered in CASUAL_MARKERS:
+        return True
+    if len(lowered.split()) > 14:
+        return False
+    return lowered.endswith("?") or any(
+        lowered == marker.strip() or lowered.startswith(marker)
+        for marker in CONTEXTUAL_MARKERS
+    )
 
 
 def infer_page_topic(text: str) -> str | None:

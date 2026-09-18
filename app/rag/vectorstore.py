@@ -46,13 +46,34 @@ class VectorStore(Protocol):
 
 
 class ChromaVectorStore:
-    collection_name = "shiva_knowledge"
-
     def __init__(self, embeddings: Embeddings | None = None, persist_path: str | None = None) -> None:
         settings = get_settings()
+        self.collection_name = settings.chroma_collection
         self._embeddings = embeddings or build_embeddings()
         if settings.environment == "test":
             self._client = chromadb.Client()
+        elif settings.chroma_mode == "cloud":
+            missing = [
+                name
+                for name, value in (
+                    ("CHROMA_API_KEY", settings.chroma_api_key),
+                    ("CHROMA_TENANT", settings.chroma_tenant),
+                    ("CHROMA_DATABASE", settings.chroma_database),
+                )
+                if not value.strip()
+            ]
+            if missing:
+                raise ValueError(
+                    "Chroma Cloud is enabled but required settings are missing: "
+                    + ", ".join(missing)
+                )
+            self._client = chromadb.CloudClient(
+                api_key=settings.chroma_api_key,
+                tenant=settings.chroma_tenant,
+                database=settings.chroma_database,
+                cloud_host=settings.chroma_host,
+                cloud_port=443,
+            )
         else:
             path = persist_path or settings.vector_db_path
             Path(path).mkdir(parents=True, exist_ok=True)

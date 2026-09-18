@@ -2,7 +2,15 @@ from collections.abc import Iterator
 
 from app.agent.gemini import GeminiClient
 from app.agent.prompts import SYSTEM_PROMPT, wrap_history, wrap_knowledge
-from app.agent.state import AgentState, Intent, classify_intent, classify_response_type, infer_page_topic, topic_count
+from app.agent.state import (
+    AgentState,
+    Intent,
+    classify_intent,
+    classify_response_type,
+    infer_page_topic,
+    is_contextual_follow_up,
+    topic_count,
+)
 from app.agent.tools import build_tool_registry
 from app.agent.tools_base import ToolRegistry
 from app.config.settings import get_settings
@@ -58,6 +66,18 @@ class PortfolioAgent:
         packed = [f"source={chunk.source}\n{chunk.text}" for chunk in chunks]
         return wrap_knowledge(packed), sources
 
+    def _effective_intent(self, message: str, history: list[ChatMessage]) -> Intent:
+        intent = classify_intent(message)
+        if intent == Intent.OUT_OF_SCOPE and is_contextual_follow_up(message, history):
+            return Intent.GENERAL
+        return intent
+
+    def _retrieval_query(self, message: str, history: list[ChatMessage]) -> str:
+        if not is_contextual_follow_up(message, history):
+            return message
+        previous = [item.content for item in history if item.role == "user"][-2:]
+        return "\n".join(previous + [message])
+
     def _maybe_time_tool(self, intent: Intent) -> str:
         if intent != Intent.TIME:
             return ""
@@ -106,7 +126,7 @@ class PortfolioAgent:
             conversation_id=conversation_id,
             user_message=message,
             history=history or [],
-            intent=classify_intent(message),
+            intent=self._effective_intent(message, history or []),
         )
         if state.intent == Intent.FAREWELL:
             now = now_tz()
@@ -132,10 +152,37 @@ class PortfolioAgent:
                 updated_at=now,
                 expires_at=now,
             )
-        state.retrieved_context, state.sources = self._retrieve(message, state.intent)
-        state.tool_context = self._maybe_time_tool(state.intent)
-        used_time = bool(state.tool_context)
-        payload = self._build_user_payload(state)
+        try:
+            state.retrieved_context, state.sources = self._retrieve(
+                self._retrieval_query(message, state.history),
+                state.intent,
+            )
+            state.tool_context = self._maybe_time_tool(state.intent)
+            used_time = bool(state.tool_context)
+            payload = self._build_user_payload(state)
+        except Exception as exc:  # noqa: BLE001
+            logger.error(
+                "Agent preparation failed category=%s error=%s",
+                _provider_error_category(exc),
+                type(exc).__name__,
+                extra={
+                    "request_id": "-",
+                    "conversation_id": conversation_id,
+                    "endpoint": "agent",
+                    "latency_ms": int((now_tz() - started).total_seconds() * 1000),
+                },
+            )
+            now = now_tz()
+            return AgentResponse(
+                conversation_id=conversation_id,
+                message=FRIENDLY_ERROR,
+                response_type="error",
+                sources=[],
+                timestamp=now,
+                created_at=now,
+                updated_at=now,
+                expires_at=now,
+            )
 
         try:
             response = self.gemini.generate(
@@ -214,7 +261,7 @@ class PortfolioAgent:
             conversation_id=conversation_id,
             user_message=message,
             history=history or [],
-            intent=classify_intent(message),
+            intent=self._effective_intent(message, history or []),
         )
         if state.intent == Intent.FAREWELL:
             yield FAREWELL_REPLY
@@ -222,7 +269,10 @@ class PortfolioAgent:
         if state.intent in {Intent.INJECTION, Intent.OUT_OF_SCOPE}:
             yield OUT_OF_SCOPE_REPLY
             return
-        state.retrieved_context, state.sources = self._retrieve(message, state.intent)
+        state.retrieved_context, state.sources = self._retrieve(
+            self._retrieval_query(message, state.history),
+            state.intent,
+        )
         state.tool_context = self._maybe_time_tool(state.intent)
         payload = self._build_user_payload(state)
         yield from self.gemini.stream(system_instruction=SYSTEM_PROMPT, contents=[payload])

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
+import time
 from typing import Any
 
 from app.config.settings import get_settings
@@ -48,11 +49,32 @@ class GeminiClient:
                     ]
                 )
             ]
-        return self._client.models.generate_content(
-            model=self._model,
-            contents=contents,
-            config=self._types.GenerateContentConfig(**config_kwargs),
+        return self._with_retry(
+            lambda: self._client.models.generate_content(
+                model=self._model,
+                contents=contents,
+                config=self._types.GenerateContentConfig(**config_kwargs),
+            ),
+            endpoint="generation",
         )
+
+    def _with_retry(self, operation, *, endpoint: str) -> Any:
+        attempts = get_settings().provider_retry_attempts
+        for attempt in range(attempts):
+            try:
+                return operation()
+            except Exception as exc:
+                if attempt + 1 >= attempts or not _is_transient_provider_error(exc):
+                    raise
+                logger.warning(
+                    "Transient Gemini failure endpoint=%s retry=%s category=%s",
+                    endpoint,
+                    attempt + 1,
+                    _provider_error_category(exc),
+                    extra={"request_id": "-", "conversation_id": "-", "endpoint": endpoint, "latency_ms": "-"},
+                )
+                time.sleep(2**attempt)
+        raise RuntimeError("Gemini operation did not return a result")
 
     def stream(
         self,
@@ -90,3 +112,22 @@ class GeminiClient:
             extra={"request_id": "-", "conversation_id": "-", "endpoint": "gemini", "latency_ms": "-"},
         )
         return ""
+
+
+def _is_transient_provider_error(exc: Exception) -> bool:
+    return getattr(exc, "status_code", None) in {408, 429, 500, 502, 503, 504} or isinstance(
+        exc,
+        TimeoutError,
+    )
+
+
+def _provider_error_category(exc: Exception) -> str:
+    status = getattr(exc, "status_code", None)
+    return {
+        408: "timeout",
+        429: "quota",
+        500: "provider_error",
+        502: "provider_error",
+        503: "provider_unavailable",
+        504: "timeout",
+    }.get(status, "timeout" if isinstance(exc, TimeoutError) else "provider_error")

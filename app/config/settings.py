@@ -17,6 +17,12 @@ class Settings(BaseSettings):
     gemini_embedding_model: str = "gemini-embedding-001"
 
     vector_db_path: str = "./data/vectorstore"
+    chroma_mode: Literal["local", "cloud"] = "local"
+    chroma_api_key: str = ""
+    chroma_tenant: str = ""
+    chroma_database: str = ""
+    chroma_host: str = "api.trychroma.com"
+    chroma_collection: str = "shiva_knowledge_development"
     knowledge_path: str = "./data/knowledge"
 
     frontend_url: str = "http://localhost:5173"
@@ -33,7 +39,8 @@ class Settings(BaseSettings):
     default_timezone: str = "Asia/Kolkata"
     environment: Literal["development", "production", "test"] = "development"
     port: int = 8000
-    request_timeout_seconds: float = Field(default=30.0, ge=5.0, le=120.0)
+    request_timeout_seconds: float = Field(default=120.0, ge=5.0, le=300.0)
+    provider_retry_attempts: int = Field(default=2, ge=1, le=3)
     rate_limit_per_minute: int = Field(default=40, ge=5, le=300)
 
     persist_conversations: bool = False
@@ -44,6 +51,22 @@ class Settings(BaseSettings):
         cleaned = value.strip()
         if not cleaned:
             raise ValueError("GEMINI_MODEL cannot be empty")
+        return cleaned
+
+    @field_validator("chroma_collection")
+    @classmethod
+    def collection_not_empty(cls, value: str) -> str:
+        cleaned = value.strip()
+        if not cleaned:
+            raise ValueError("CHROMA_COLLECTION cannot be empty")
+        return cleaned
+
+    @field_validator("chroma_host")
+    @classmethod
+    def host_not_empty(cls, value: str) -> str:
+        cleaned = value.strip()
+        if not cleaned:
+            raise ValueError("CHROMA_HOST cannot be empty")
         return cleaned
 
     @property

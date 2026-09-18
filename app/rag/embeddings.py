@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import time
 from typing import Protocol
 
 from app.config.settings import get_settings
@@ -47,7 +48,11 @@ class GeminiEmbeddings:
         settings = get_settings()
         if not settings.gemini_api_key:
             raise RuntimeError("GEMINI_API_KEY is required for Gemini embeddings")
-        self._client = genai.Client(api_key=settings.gemini_api_key)
+        timeout_ms = int(settings.request_timeout_seconds * 1000)
+        self._client = genai.Client(
+            api_key=settings.gemini_api_key,
+            http_options=types.HttpOptions(timeout=timeout_ms),
+        )
         self._types = types
         self._model = settings.gemini_embedding_model.removeprefix("models/")
         if self._model == "text-embedding-004":
@@ -61,10 +66,9 @@ class GeminiEmbeddings:
         batch_size = 50
         for start in range(0, len(texts), batch_size):
             batch = texts[start : start + batch_size]
-            response = self._client.models.embed_content(
-                model=self._model,
+            response = self._embed_with_retry(
                 contents=batch,
-                config=self._types.EmbedContentConfig(task_type="RETRIEVAL_DOCUMENT"),
+                task_type="RETRIEVAL_DOCUMENT",
             )
             for embedding in response.embeddings:
                 values = embedding.values
@@ -74,14 +78,33 @@ class GeminiEmbeddings:
         return vectors
 
     def embed_query(self, text: str) -> list[float]:
-        response = self._client.models.embed_content(
-            model=self._model,
-            contents=text,
-            config=self._types.EmbedContentConfig(task_type="RETRIEVAL_QUERY"),
-        )
+        response = self._embed_with_retry(contents=text, task_type="RETRIEVAL_QUERY")
         if not response.embeddings or not response.embeddings[0].values:
             raise RuntimeError("Gemini returned an empty query embedding")
         return list(response.embeddings[0].values)
+
+    def _embed_with_retry(self, *, contents, task_type: str):
+        attempts = get_settings().provider_retry_attempts
+        for attempt in range(attempts):
+            try:
+                return self._client.models.embed_content(
+                    model=self._model,
+                    contents=contents,
+                    config=self._types.EmbedContentConfig(task_type=task_type),
+                )
+            except Exception as exc:
+                status = getattr(exc, "status_code", None)
+                retryable = status in {408, 429, 500, 502, 503, 504} or isinstance(exc, TimeoutError)
+                if attempt + 1 >= attempts or not retryable:
+                    raise
+                logger.warning(
+                    "Transient Gemini embedding failure retry=%s status=%s",
+                    attempt + 1,
+                    status,
+                    extra={"request_id": "-", "conversation_id": "-", "endpoint": "embeddings", "latency_ms": "-"},
+                )
+                time.sleep(2**attempt)
+        raise RuntimeError("Gemini embedding did not return a result")
 
 
 def build_embeddings(force_hash: bool = False) -> Embeddings:
