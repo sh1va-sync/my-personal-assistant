@@ -35,6 +35,8 @@ def get_agent() -> PortfolioAgent:
     try:
         retriever = get_retriever()
     except Exception:  # noqa: BLE001
+        if get_settings().is_production:
+            raise
         retriever = None
     return PortfolioAgent(retriever=retriever)
 

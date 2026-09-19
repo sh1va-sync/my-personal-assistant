@@ -1,0 +1,12 @@
+.env
+.git
+.gitignore
+.venv
+__pycache__
+*.pyc
+.pytest_cache
+.mypy_cache
+.ruff_cache
+data/vectorstore
+data/knowledge/personal_life.md
+streamlit_app.py

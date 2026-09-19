@@ -73,6 +73,22 @@ class Settings(BaseSettings):
     def is_production(self) -> bool:
         return self.environment == "production"
 
+    def validate_runtime(self) -> None:
+        required = [("GEMINI_API_KEY", self.gemini_api_key)]
+        if self.chroma_mode == "cloud":
+            required.extend(
+                [
+                    ("CHROMA_API_KEY", self.chroma_api_key),
+                    ("CHROMA_TENANT", self.chroma_tenant),
+                    ("CHROMA_DATABASE", self.chroma_database),
+                ]
+            )
+        missing = [name for name, value in required if not value.strip()]
+        if missing:
+            raise ValueError("Missing required runtime settings: " + ", ".join(missing))
+        if self.is_production and not self.cors_origins:
+            raise ValueError("At least one production CORS origin is required")
+
     @property
     def cors_origins(self) -> list[str]:
         origins = [item.strip() for item in self.allowed_origins.split(",") if item.strip()]

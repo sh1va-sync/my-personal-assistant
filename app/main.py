@@ -26,6 +26,8 @@ FRIENDLY_ERROR = "My brain just hit a tiny server-side speed bump. Try that agai
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
+    if settings.is_production:
+        settings.validate_runtime()
     app.state.agent = get_agent()
     logger.info(
         "Portfolio agent ready model=%s env=%s",

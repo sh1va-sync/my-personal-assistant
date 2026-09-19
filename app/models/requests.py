@@ -71,7 +71,9 @@ class AgentResponse(BaseModel):
 
 
 class HealthResponse(BaseModel):
-    status: Literal["ok"] = "ok"
+    status: Literal["ok", "degraded"] = "ok"
+    knowledge_ready: bool = True
+    document_count: int = 0
 
 
 class SessionResponse(BaseModel):
