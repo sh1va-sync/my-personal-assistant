@@ -22,6 +22,7 @@ CONTEXTUAL_MARKERS = (
     "they",
     "them",
     "he",
+    "him",
     "she",
     "his",
     "her",
@@ -33,6 +34,10 @@ CONTEXTUAL_MARKERS = (
     "also ",
     "what do you mean",
     "tell me more",
+    "okay ",
+    "ok ",
+    "sure ",
+    "fair ",
 )
 
 
@@ -214,7 +219,12 @@ def is_contextual_follow_up(message: str, history: list[ChatMessage]) -> bool:
         return True
     if len(lowered.split()) > 14:
         return False
-    return lowered.endswith("?") or any(
+    if any(
+        word in lowered.split()
+        for word in {"it", "that", "this", "they", "them", "he", "him", "she", "her"}
+    ):
+        return True
+    return any(
         lowered == marker.strip() or lowered.startswith(marker)
         for marker in CONTEXTUAL_MARKERS
     )
