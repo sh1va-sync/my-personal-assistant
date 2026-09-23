@@ -25,8 +25,8 @@ class Settings(BaseSettings):
     chroma_collection: str = "shiva_knowledge_development"
     knowledge_path: str = "./data/knowledge"
 
-    frontend_url: str = "http://localhost:5173"
-    allowed_origins: str = "http://localhost:5173,http://localhost:3000"
+    frontend_url: str = "https://portfolio-4vrvyhwge-shiva-charys-projects.vercel.app/"
+    allowed_origins: str = "https://portfolio-4vrvyhwge-shiva-charys-projects.vercel.app/"
     work_page_url: str = ""
     about_page_url: str = ""
     contact_page_url: str = ""
