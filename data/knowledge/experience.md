@@ -9,4 +9,5 @@ He is exploring constraint-based UI, design systems, and the tooling that makes 
 He is open for freelance and new opportunities.
 
 Specific company names, job titles, employment dates, and internships are not recorded here unless added later.
-Do not invent employers or years of professional experience.
+Do not invent employers or years of professional experience. 
+No professional experience.

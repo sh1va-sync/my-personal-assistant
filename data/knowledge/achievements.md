@@ -1,6 +1,7 @@
 # achievements.md
 
-No named awards, hackathon placements, or publication titles are recorded in this knowledge base yet.
+1. Job Offers at TCS, LTM. 
+2. solved 100+ DSA and coding problems across multiple coding platforms
 
 Shiva's current signal is the work itself: shipping AI-powered products, full-stack apps, and this personal portfolio agent.
 
