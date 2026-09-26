@@ -5,6 +5,14 @@ MetaConnect is a project Shiva built with real-time communication using WebRTC.
 
 It is the project to mention if someone asks which of his projects used WebRTC.
 
+## Smile Desk
+AI powered dental front desk.
+It assists user to deal with dental problems and also books appointment for a dental consultation in local hospital
+
+## Sync.AI
+RAG personal assistant agent for Shiva
+it answers questions and talks on behalf of shiva.
+
 ## Pneumo.AI
 Pneumo.AI is an AI project Shiva has built. It is one of the products he points to when talking about applied AI work, not just theory.
 

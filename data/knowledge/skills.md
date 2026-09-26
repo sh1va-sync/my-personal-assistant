@@ -2,15 +2,15 @@
 
 Shiva's core languages: JavaScript, Python, and Java.
 
-Frontend: React, TypeScript, Next.js, Vite, Tailwind CSS, Framer Motion.
+Frontend: React,Tailwind CSS, HTML.
 
-Backend: Node.js / Express, FastAPI, Python APIs.
+Backend: Node.js / Express, FastAPI, REST API.
 
-Data: PostgreSQL, Redis.
+Data: PostgreSQL, MySQL.
 
 AI / ML application stack: RAG, embeddings, vector databases, LangChain, LangGraph, AI agents, tool calling, LLM applications, prompting, context windows.
 
-Platforms and tools: Git, Docker, AWS, Vercel, Supabase, OpenAI, Claude, Gemini.
+Platforms and tools: Git, Docker, Vercel, Supabase, OpenAI, Claude, Gemini.
 
 He is especially deep into building AI agents, RAG systems, and LLM-powered products — not just using model APIs as a demo.
 
